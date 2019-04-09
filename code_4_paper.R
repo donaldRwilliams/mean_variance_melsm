@@ -455,41 +455,48 @@ post_con <- posterior_samples(fit_3, pars = "cor")[,1]
 ##############################
 #### lkj marginals ###########
 ##############################
+# nu 1
 nu_1 <- rethinking::rlkjcorr(1000000, K = 4, eta = 1)[,,1][,2]
 hdi_1 <- HDInterval::hdi(nu_1, 0.50)
 
-
+# nu 2
 nu_2  <- rethinking::rlkjcorr(1000000, K = 4, eta = 2)[,,1][,2]
 hdi_2 <- HDInterval::hdi(nu_2, 0.50)
 
-
+# nu 3
 nu_3  <- rethinking::rlkjcorr(1000000, K = 4, eta = 3)[,,1][,2]
 hdi_3 <- HDInterval::hdi(nu_3, 0.50)
 
-
+# nu 4
 nu_4  <- rethinking::rlkjcorr(1000000, K = 4, eta = 4)[,,1][,2]
 hdi_4 <- HDInterval::hdi(nu_4, 0.50)
 
-
-
+# data for plotting
 lkj_dat <- data.frame(nu = as.factor(rep(1:4, each = 10000)), 
-                      sample = c(nu_1[1:10000], nu_2[1:10000],
-                        nu_3[1:10000], nu_4[1:10000]))
+                      sample = c(nu_1[1:10000], 
+                                 nu_2[1:10000],
+                                 nu_3[1:10000], 
+                                 nu_4[1:10000]))
 
 lkj_dat %>% 
   ggplot() +
-  geom_line(stat = "density", aes(linetype = nu, x = sample), adjust = 1.5) +
+  # for linetype
+  geom_line(stat = "density", 
+            aes(linetype = nu, x = sample), 
+            adjust = 1.5) +
   theme_bw(base_family = "Times") +
   # plot options
-  theme(panel.grid.minor.x =   element_blank(), 
+  theme(panel.grid.minor.x = element_blank(), 
         panel.grid.minor.y = element_blank(),
         axis.title = element_text(size = 14),
-        legend.justification=c(1,1), legend.position=c(1,1),
+        # top right legend
+        legend.justification=c(1,1), 
+        legend.position=c(1,1),
         legend.background = element_rect(color = "black")) +
   xlab( expression("Marginal Prior Distribution"~ italic(rho[i][j]))) +
   ylab("Density") +
-  scale_linetype_manual(name = expression("  " ~italic(nu)), 
-                        values = c("solid", "longdash", "dotted", "dotdash") )
+  scale_linetype_manual(name = expression("  "~italic(nu)), 
+                        values = c("solid", "longdash", "dotted", "dotdash"))
   
 
 
