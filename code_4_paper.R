@@ -1,0 +1,487 @@
+####################################
+###### testing mean--variance ######
+####################################
+rm(list = ls())
+library(brms)
+library(dplyr)
+library(ggplot2)
+library(cowplot)
+# read the data
+
+
+ur <- "https://raw.githubusercontent.com/PerceptionCognitionLab/data0/master/contexteffects/FlankerStroopSimon/cleaning.R"
+devtools::source_url(ur)
+
+
+
+# incongruent intercept only
+fit_1 <- brm(bf(rt ~ 1 + (1|c|ID), sigma ~ 1 + (1|c|ID)), 
+             data = stroop %>% filter(congruency == "incongruent"),
+             inits = 0, cores = 2, 
+             chains = 2, iter = 2000, 
+             warmup = 1000)
+
+# check to easy worry of ``over-fitting''
+# remove scale model
+fit_2 <- brm(bf(rt ~ 1 + (1|c|ID)), 
+             data = stroop %>% filter(congruency == "incongruent"),
+             inits = 0, cores = 2, 
+             chains = 2, iter = 2000, 
+             warmup = 1000)
+
+# congruent intercept only
+fit_3 <- brm(bf(rt ~ 1 + (1|c|ID), sigma ~ 1 + (1|c|ID)), 
+             data = stroop %>% filter(congruency == "congruent"),
+             inits = 0, cores = 2, 
+             chains = 2, iter = 2000, 
+             warmup = 1000)
+
+
+# check to easy worry of ``over-fitting''
+# remove scale model
+fit_4 <- brm(bf(rt ~ 1 + (1|c|ID)), 
+             data = stroop %>% filter(congruency == "congruent"),
+             inits = 0, cores = 2, 
+             chains = 2, iter = 2000, 
+             warmup = 1000)
+
+
+
+fit_5 <- brm(bf(rt ~ 1 ), 
+             data = stroop %>% filter(congruency == "congruent"),
+             inits = 0, cores = 2, 
+             chains = 2, iter = 2000, 
+             warmup = 1000)
+
+fit_6 <- brm(bf(rt ~ 1 + (1|ID), sigma ~ 1 + (1|ID)), 
+             data = stroop %>% filter(congruency == "congruent"),
+             inits = 0, cores = 2, 
+             chains = 2, iter = 2000, 
+             warmup = 1000)
+
+###############################
+######## plot 1 ###############
+###############################
+# times font
+windowsFonts(Times = windowsFont("Times New Roman"))
+
+
+###############################
+####### incongruent ###########
+###############################
+
+###########
+## sigma ##
+###########
+re_sigma_in <- fit_1 %>% 
+  data.frame() %>% 
+  select(contains("r_ID__sigma")) 
+
+fe_sigma_in <- fit_1 %>% 
+  data.frame() %>% 
+  select(contains("b_sigma_Intercept")) 
+
+re_sigma_in <- exp(re_sigma_in + fe_sigma_in[,1]) 
+colnames(re_sigma_in) <- 1:121
+
+# empirical estimates
+emp_est_in <- stroop %>% 
+  filter(congruency == "incongruent") %>% 
+  group_by(ID) %>% 
+  summarise(sd_emp = sd(rt), mean_emp = mean(rt))
+
+set.seed(1)
+random_draw <- sample(1:121, 60, replace = F)
+
+plot_1a <- melt(re_sigma_in) %>% 
+  group_by(variable) %>% 
+  # compute mean and intervals
+  summarise(mu_sigma = mean(value), 
+            low = quantile(value, 0.05),
+            up = quantile(value, 0.95)) %>% 
+  # order small to large
+  mutate(sd_emp = emp_est_in$sd_emp) %>%
+  arrange(mu_sigma) %>%
+  mutate(index = as.factor(1:121), 
+         dist_param = "SD", 
+         outcome = "Incongruent") %>%
+  filter(index %in% random_draw) %>%
+  ggplot() +
+  # fixed effect line
+  geom_hline(yintercept = round(exp(posterior_summary(fit_1, "b_")[2,1]),2), 
+             linetype = "twodash",
+             alpha = 0.50) +
+  # error bars
+  geom_errorbar(aes(x = index, ymin = low, ymax = up),width = 0.05) +
+  # model based estimates
+  geom_point(aes(x = index, y = mu_sigma), size = 2, 
+             color = "#0072B2", 
+             alpha = 0.75) +
+  # empirical estimates
+  geom_point(aes(x = index, 
+                 y = sd_emp), 
+             size = 2, 
+             color = "#D55E00", 
+             alpha = 0.75) +
+  # times font
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.major.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 16)) +
+  scale_x_discrete(expand = c(0.01, 0.01)) +
+  ylab("Standard Deviation") +
+  xlab("Ascending Index") +
+  ggtitle("")
+  
+  
+ 
+###########
+## mean ##
+###########
+re_mean_in <- fit_1 %>% 
+  data.frame() %>% 
+  select(contains("r_ID")) %>% 
+  select(-contains("sigma"))
+
+fe_mean_in <- fit_1 %>% 
+  data.frame() %>% 
+  select(contains("b_Intercept")) 
+
+re_mean_in <- (re_mean_in + fe_mean_in[,1]) 
+colnames(re_mean_in) <- 1:121
+
+# empirical estimates
+# emp_est <- stroop %>% 
+#   filter(congruency == "incongruent") %>% 
+#   group_by(ID) %>% 
+#   summarise(sd_emp = sd(rt), mean_emp = mean(rt))
+
+set.seed(1)
+random_draw <- sample(1:121, 60, replace = F)
+
+plot_1b <- melt(re_mean_in) %>% 
+  group_by(variable) %>% 
+  # compute mean and intervals
+  summarise(mu_mu = mean(value), 
+            low = quantile(value, 0.05),
+            up = quantile(value, 0.95)) %>% 
+  # order small to large
+  mutate(mu_emp = emp_est_in$mean_emp) %>%
+  arrange(mu_mu) %>%
+  mutate(index = as.factor(1:121), 
+         dist_param = "mean", 
+         outcome = "Incongruent") %>%
+  filter(index %in% random_draw) %>%
+  ggplot() +
+  # fixed effect line
+  geom_hline(yintercept = round(posterior_summary(fit_1, "b_")[1,1],2), 
+             linetype = "twodash",
+             alpha = 0.50) +
+  # error bars
+  geom_errorbar(aes(x = index, ymin = low, ymax = up),width = 0.05) +
+  # model based estimates
+  geom_point(aes(x = index, y = mu_mu), size = 2, color = "#0072B2", alpha = 0.75) +
+  # empirical estimates
+  geom_point(aes(x = index, 
+                 y = mu_emp), 
+             size = 2, 
+             color = "#D55E00",
+             alpha = 0.75) +
+  # times font
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.major.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  scale_x_discrete(expand = c(0.01, 0.01)) +
+  ylab("Mean") +
+  xlab("Ascending Index") +
+  ggtitle("Incongruent") +
+  scale_y_continuous(breaks = c(0.6, 0.7, 0.77, 0.9, 1))
+
+
+
+# plot correlations
+
+dat_model_in <- data.frame(type = "Hierarchical",  
+                        mean = colMeans(re_mean_in), sd = colMeans(re_sigma_in))
+                        
+
+dat_data_in <- data.frame(type = "Empirical",  
+                    mean = emp_est_in$mean_emp, sd = emp_est_in$sd_emp)
+
+
+dat_plt_in <- rbind.data.frame(dat_model_in, dat_data_in)
+
+plot_1c <- ggplot(dat_plt, aes(y = sd, x = mean, color = type)) +
+  geom_point(size = 2, alpha = 0.75) +
+  geom_smooth(method = "lm", se = F, show.legend = F) +
+  scale_color_manual(values =c( "#0072B2", "#D55E00")) +
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.minor.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14),
+         legend.text = element_text(size = 13),
+        legend.justification=c(1,0), legend.position=c(1,0),
+        legend.title = element_blank(), legend.background = element_rect(color = "black"),
+        legend.margin=margin(c(1,1,1,1))) +
+  xlab("Mean") +
+  ylab("Standard Deviation") +
+  guides(colour = guide_legend(override.aes = list(alpha=1))) +
+  ggtitle("") 
+
+
+
+plot_in <- plot_grid(plot_1b, plot_1a, plot_1c, nrow = 1)
+
+
+
+###############################
+####### congruent #############
+###############################
+
+###########
+## sigma ##
+###########
+re_sigma_con <- fit_3 %>% 
+  data.frame() %>% 
+  select(contains("r_ID__sigma")) 
+
+fe_sigma_con <- fit_3 %>% 
+  data.frame() %>% 
+  select(contains("b_sigma_Intercept")) 
+
+re_sigma_con <- exp(re_sigma_con + fe_sigma_con[,1]) 
+colnames(re_sigma_con) <- 1:121
+
+# empirical estimates
+emp_est_con <- stroop %>% 
+  filter(congruency == "congruent") %>% 
+  group_by(ID) %>% 
+  summarise(sd_emp = sd(rt), mean_emp = mean(rt))
+
+set.seed(1)
+random_draw <- sample(1:121, 60, replace = F)
+
+plot_2a <- melt(re_sigma_con) %>% 
+  group_by(variable) %>% 
+  # compute mean and intervals
+  summarise(mu_sigma = mean(value), 
+            low = quantile(value, 0.05),
+            up = quantile(value, 0.95)) %>% 
+  # order small to large
+  mutate(sd_emp = emp_est_con$sd_emp) %>%
+  arrange(mu_sigma) %>%
+  mutate(index = as.factor(1:121), 
+         dist_param = "SD", 
+         outcome = "Congruent") %>%
+  filter(index %in% random_draw) %>%
+  ggplot() +
+  # fixed effect line
+  geom_hline(yintercept = round(exp(posterior_summary(fit_3, "b_")[2,1]),2), 
+             linetype = "twodash",
+             alpha = 0.50) +
+  # error bars
+  geom_errorbar(aes(x = index, ymin = low, ymax = up),width = 0.05) +
+  # model based estimates
+  geom_point(aes(x = index, y = mu_sigma), size = 2, 
+             color = "#0072B2", 
+             alpha = 0.75) +
+  # empirical estimates
+  geom_point(aes(x = index, 
+                 y = sd_emp), 
+             size = 2, 
+             color = "#D55E00", 
+             alpha = 0.75) +
+  # times font
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.major.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  scale_x_discrete(expand = c(0.01, 0.01)) +
+  ylab("Standard Deviation") +
+  xlab("Ascending Index") +
+  ggtitle("") +
+  scale_y_continuous(breaks = c(0.1, 0.17, 0.3))
+
+
+
+###########
+## mean ##
+###########
+re_mean_con <- fit_3 %>% 
+  data.frame() %>% 
+  select(contains("r_ID")) %>% 
+  select(-contains("sigma"))
+
+fe_mean_con <- fit_3 %>% 
+  data.frame() %>% 
+  select(contains("b_Intercept")) 
+
+re_mean_con <- (re_mean_con + fe_mean_con[,1]) 
+colnames(re_mean_con) <- 1:121
+
+# empirical estimates
+# emp_est <- stroop %>% 
+#   filter(congruency == "incongruent") %>% 
+#   group_by(ID) %>% 
+#   summarise(sd_emp = sd(rt), mean_emp = mean(rt))
+
+set.seed(1)
+random_draw <- sample(1:121, 60, replace = F)
+
+plot_2b <- melt(re_mean_con) %>% 
+  group_by(variable) %>% 
+  # compute mean and intervals
+  summarise(mu_mu = mean(value), 
+            low = quantile(value, 0.05),
+            up = quantile(value, 0.95)) %>% 
+  # order small to large
+  mutate(mu_emp = emp_est_con$mean_emp) %>%
+  arrange(mu_mu) %>%
+  mutate(index = as.factor(1:121), 
+         dist_param = "mean", 
+         outcome = "Congruent") %>%
+  filter(index %in% random_draw) %>%
+  ggplot() +
+  # fixed effect line
+  geom_hline(yintercept = round(posterior_summary(fit_3, "b_")[1,1],2), 
+             linetype = "twodash",
+             alpha = 0.50) +
+  # error bars
+  geom_errorbar(aes(x = index, ymin = low, ymax = up),width = 0.05) +
+  # model based estimates
+  geom_point(aes(x = index, y = mu_mu), size = 2, color = "#0072B2", alpha = 0.75) +
+  # empirical estimates
+  geom_point(aes(x = index, 
+                 y = mu_emp), 
+             size = 2, 
+             color = "#D55E00",
+             alpha = 0.75) +
+  # times font
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.major.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  scale_x_discrete(expand = c(0.01, 0.01)) +
+  ylab("Mean") +
+  xlab("Ascending Index") +
+  ggtitle("Congruent") +
+  scale_y_continuous(breaks = c(0.6, 0.71, 0.8, 0.9, 1))
+
+
+
+# plot correlations
+
+dat_model_con <- data.frame(type = "Hierarchical",  
+                        mean = colMeans(re_mean_con), sd = colMeans(re_sigma_con))
+
+
+dat_data_con <- data.frame(type = "Empirical",  
+                       mean = emp_est_con$mean_emp, sd = emp_est_con$sd_emp)
+
+
+dat_plt_con <- rbind.data.frame(dat_model_con, dat_data_con)
+
+plot_2c <- ggplot(dat_plt_con, aes(y = sd, x = mean, color = type)) +
+  geom_point(size = 2, alpha = 0.75) +
+  geom_smooth(method = "lm", se = F, show.legend = F) +
+  scale_color_manual(values =c( "#0072B2", "#D55E00"), name = "") +
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.minor.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 16),
+        legend.position = "none") +
+  xlab("Mean") +
+  ylab("Standard Deviation") +
+  guides(colour = guide_legend(override.aes = list(alpha=1))) +
+  ggtitle("") 
+
+
+plot_con <- plot_grid(plot_2b, plot_2a, plot_2c, nrow = 1)
+
+
+plot_grid(plot_in, plot_con, nrow = 2)
+
+
+##############################
+###### compare WAIC ##########
+##############################
+WAIC(fit_1, fit_2)
+WAIC(fit_3, fit_4)
+
+##############################
+##### bootstrapping cors #####
+##############################
+round(cor(dat_data_in[,2:3]),3)[1,2]
+round(mean(posterior_samples(fit_1, pars = "cor")[,1]),3)
+
+round(cor(dat_data_con[,2:3]),3)[1,2]
+round(mean(posterior_samples(fit_3, pars = "cor")[,1]),3)
+
+
+boot_in <- replicate(2000, cor(dat_data_in[sample(1:121, 121, replace = T),2:3])[1,2])
+boot_con <- replicate(2000, cor(dat_data_con[sample(1:121, 121, replace = T),2:3])[1,2])
+
+
+post_in <- posterior_samples(fit_1, pars = "cor")[,1]
+post_con <- posterior_samples(fit_3, pars = "cor")[,1]
+
+
+##############################
+#### lkj marginals ###########
+##############################
+nu_1 <- rethinking::rlkjcorr(1000000, K = 4, eta = 1)[,,1][,2]
+hdi_1 <- HDInterval::hdi(nu_1, 0.50)
+
+
+nu_2  <- rethinking::rlkjcorr(1000000, K = 4, eta = 2)[,,1][,2]
+hdi_2 <- HDInterval::hdi(nu_2, 0.50)
+
+
+nu_3  <- rethinking::rlkjcorr(1000000, K = 4, eta = 3)[,,1][,2]
+hdi_3 <- HDInterval::hdi(nu_3, 0.50)
+
+
+nu_4  <- rethinking::rlkjcorr(1000000, K = 4, eta = 4)[,,1][,2]
+hdi_4 <- HDInterval::hdi(nu_4, 0.50)
+
+
+
+lkj_dat <- data.frame(nu = as.factor(rep(1:4, each = 10000)), 
+                      sample = c(nu_1[1:10000], nu_2[1:10000],
+                        nu_3[1:10000], nu_4[1:10000]))
+
+lkj_dat %>% 
+  ggplot() +
+  geom_line(stat = "density", aes(linetype = nu, x = sample), adjust = 1.5) +
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.minor.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.title = element_text(size = 14),
+        legend.justification=c(1,1), legend.position=c(1,1),
+        legend.background = element_rect(color = "black")) +
+  xlab( expression("Marginal Prior Distribution"~ italic(rho[i][j]))) +
+  ylab("Density") +
+  scale_linetype_manual(name = expression("  " ~italic(nu)), 
+                        values = c("solid", "longdash", "dotted", "dotdash") )
+  
+
+
+
