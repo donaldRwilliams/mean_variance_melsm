@@ -397,9 +397,17 @@ dat_data_con <- data.frame(type = "Empirical",
 dat_plt_con <- rbind.data.frame(dat_model_con, dat_data_con)
 
 plot_2c <- ggplot(dat_plt_con, aes(y = sd, x = mean, color = type)) +
-  geom_point(size = 2, alpha = 0.75) +
-  geom_smooth(method = "lm", se = F, show.legend = F) +
-  scale_color_manual(values =c( "#0072B2", "#D55E00"), name = "") +
+  # points
+  geom_point(size = 2, 
+             alpha = 0.75) +
+  # add fitted line
+  geom_smooth(method = "lm", 
+              se = F, 
+              show.legend = F) +
+  # color blind pallette
+  scale_color_manual(values =c( "#0072B2", "#D55E00"), 
+                     name = "") +
+  # fav theme with times font
   theme_bw(base_family = "Times") +
   # plot options
   theme(panel.grid.minor.x =   element_blank(), 
@@ -409,6 +417,7 @@ plot_2c <- ggplot(dat_plt_con, aes(y = sd, x = mean, color = type)) +
         legend.position = "none") +
   xlab("Mean") +
   ylab("Standard Deviation") +
+  # remove transparency from legend points
   guides(colour = guide_legend(override.aes = list(alpha=1))) +
   ggtitle("") 
 
