@@ -168,9 +168,16 @@ plot_1b <- melt(re_mean_in) %>%
              linetype = "twodash",
              alpha = 0.50) +
   # error bars
-  geom_errorbar(aes(x = index, ymin = low, ymax = up),width = 0.05) +
+  geom_errorbar(aes(x = index, 
+                    ymin = low, 
+                    ymax = up), 
+                width = 0.05) +
   # model based estimates
-  geom_point(aes(x = index, y = mu_mu), size = 2, color = "#0072B2", alpha = 0.75) +
+  geom_point(aes(x = index, 
+                 y = mu_mu), 
+             size = 2, 
+             color = "#0072B2", 
+             alpha = 0.75) +
   # empirical estimates
   geom_point(aes(x = index, 
                  y = mu_emp), 
@@ -196,11 +203,13 @@ plot_1b <- melt(re_mean_in) %>%
 # plot correlations
 
 dat_model_in <- data.frame(type = "Hierarchical",  
-                        mean = colMeans(re_mean_in), sd = colMeans(re_sigma_in))
+                        mean = colMeans(re_mean_in), 
+                        sd = colMeans(re_sigma_in))
                         
 
 dat_data_in <- data.frame(type = "Empirical",  
-                    mean = emp_est_in$mean_emp, sd = emp_est_in$sd_emp)
+                    mean = emp_est_in$mean_emp, 
+                    sd = emp_est_in$sd_emp)
 
 
 dat_plt_in <- rbind.data.frame(dat_model_in, dat_data_in)
@@ -216,8 +225,10 @@ plot_1c <- ggplot(dat_plt, aes(y = sd, x = mean, color = type)) +
         axis.title = element_text(size = 14),
         title = element_text(size = 14),
          legend.text = element_text(size = 13),
-        legend.justification=c(1,0), legend.position=c(1,0),
-        legend.title = element_blank(), legend.background = element_rect(color = "black"),
+        legend.justification=c(1,0), 
+        legend.position=c(1,0),
+        legend.title = element_blank(), 
+        legend.background = element_rect(color = "black"),
         legend.margin=margin(c(1,1,1,1))) +
   xlab("Mean") +
   ylab("Standard Deviation") +
