@@ -9,6 +9,8 @@ library(cowplot)
 library(reshape)
 # read the data
 
+# times font
+windowsFonts(Times = windowsFont("Times New Roman"))
 
 ur <- "https://raw.githubusercontent.com/PerceptionCognitionLab/data0/master/contexteffects/FlankerStroopSimon/cleaning.R"
 devtools::source_url(ur)
@@ -63,9 +65,6 @@ fit_6 <- brm(bf(rt ~ 1 + (1|ID), sigma ~ 1 + (1|ID)),
 ###############################
 ######## plot 1 ###############
 ###############################
-# times font
-windowsFonts(Times = windowsFont("Times New Roman"))
-
 
 ###############################
 ####### incongruent ###########
@@ -516,6 +515,8 @@ fit_stroop <- brm(form_stroop, data = stroop,
                   chains = 2, iter = 2000, 
                   warmup = 1000)
 
+save(fit_stroop, file = "fit_stroop.Rdata")
+
 # random effects mean
 re_mean_stroop <- fit_stroop  %>% 
   data.frame() %>%
@@ -532,15 +533,132 @@ fe_mean_stroop <- fit_stroop  %>%
 
 re_mean_stroop <- (re_mean_stroop + fe_mean_stroop[,1])
 colnames(re_mean_stroop) <- 1:121
-re_mean_stroop %>% 
+plot_1a <- re_mean_stroop %>% 
    melt() %>% 
   group_by(variable) %>% 
   summarise(mu = mean(value),
             low = quantile(value, probs = 0.05),
              up = quantile(value, probs = 0.95)) %>%
-  mutate(sig = ifelse(low < 0  & up > 0, 0, 1)) %>%
+  mutate(sig = as.factor(ifelse(low < round(mean(fe_mean_stroop[,1]), 2)  & up > round(mean(fe_mean_stroop[,1]), 2), 0, 1))) %>%
   arrange(mu) %>%
-  mutate(index = as.factor(1:121))
+  mutate(index = as.factor(1:121)) %>%
+  ggplot() +
+  # line at average
+  geom_hline(yintercept = round(mean(fe_mean_stroop[,1]), 2),
+             alpha = 0.50,
+             linetype = "twodash") +
+  # line at 0
+  geom_hline(yintercept = 0,
+             alpha = 0.50) +
+  # 90 credible intervals
+  geom_errorbar(aes(x = index, 
+                    ymin = low, 
+                    ymax = up, 
+                    color = sig), 
+                show.legend = F,
+                width = 0) +
+  # points
+  geom_point(aes(x = index, 
+                 y = mu,
+                 group = sig), 
+             size = 2, 
+             alpha = 0.75) +
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.major.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  xlab("Ascending Index") +
+  scale_x_discrete(expand = c(0.015, 0.015)) +
+  ylab(expression(atop(italic(beta[1])* " + " *italic(u[1][i]),  mu * "  Congruency"))) +
+  # ylab(expression(italic(beta[1]) ~ "+" ~ italic(u[1][i]))) +
+  scale_y_continuous(breaks = c(0, 0.05, 0.07, 0.10, 0.15)) +
+  scale_color_manual(values = c("#009E73", "#CC79A7"))
+    
+
+
+
+# random effects scale
+re_sigma_stroop <- fit_stroop  %>% 
+  data.frame() %>%
+  select( contains("r")) %>%
+  select(contains("sigma")) %>%
+  select(-contains("Intercept")) %>%
+  select(-contains("b_")) %>%
+  select(-contains("sd_")) %>%
+  select(-contains("cor"))
+
+# fixed effect mean
+fe_sigma_stroop <- fit_stroop  %>% 
+  data.frame() %>% 
+  select(contains("b_sigma_congruencyincongruent"))
+
+re_sigma_stroop <- re_sigma_stroop + fe_sigma_stroop[,1]
+colnames(re_sigma_stroop) <- 1:121
+plot_2a <- re_sigma_stroop %>% 
+  melt() %>% 
+  group_by(variable) %>% 
+  summarise(mu = mean(value),
+            low = quantile(value, probs = 0.05),
+            up = quantile(value, probs = 0.95)) %>%
+  mutate(sig = as.factor(ifelse(low < round(mean((fe_sigma_stroop[,1])),2)  & up > round(mean((fe_sigma_stroop[,1])),2) , 0, 1))) %>%
+  arrange(mu) %>%
+  mutate(index = as.factor(1:121)) %>%
+  ggplot() +
+  # line at average
+  geom_hline(yintercept = round(mean((fe_sigma_stroop[,1])),2),
+             alpha = 0.50,
+             linetype = "twodash") +
+  # line at 0
+  geom_hline(yintercept = 0,
+  alpha = 0.50) +
+  # 90 credible intervals
+  geom_errorbar(aes(x = index, 
+                    ymin = low, 
+                    ymax = up, 
+                    color = sig), 
+                show.legend = F,
+                width = 0) +
+  # points
+  geom_point(aes(x = index, 
+                 y = mu,
+                 group = sig), 
+             size = 2, 
+             alpha = 0.75) +
+  theme_bw(base_family = "Times") +
+  # plot options
+  theme(panel.grid.major.x =   element_blank(), 
+        panel.grid.minor.y = element_blank(),
+        axis.text.x = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  xlab("Ascending Index") +
+  scale_x_discrete(expand = c(0.015, 0.015)) +
+  ylab(expression(atop(italic(eta[1])* " + " *italic(u[3][i]), "log"*(sigma)* "  Congruency"))) +
+  # ylab(expression(atop(italic(eta[1])~"+" ~ italic(u[3][i])), italic("d"))) +
+  scale_y_continuous(breaks = c(-0.5, 0, 0.5, 0.16, 0.5, 1)) +
+  scale_color_manual(values = c("#009E73", "#CC79A7"))
+plot_2a
+
+
+cowplot::plot_grid(plot_1a, plot_2a, ncol = 1)
+
+# +
+  # scale_y_continuous(breaks = c(0, 0.05, 0.07, 0.10, 0.15)) +
+  # scale_color_manual(values = c("#009E73", "#CC79A7"))
+
+
+
+
+
+
+
+
+
+
+
 
 
 
