@@ -768,11 +768,11 @@ plot_42 <- dat_42 %>%
              size = 2, color = "black", alpha = 0.5) +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0,0)) +
-  ylab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), italic(mu)*"  Congruency"))) +
-  xlab(expression(atop(italic(eta[1])* " + " *italic(u[2][i]), "log"*(sigma)* "  Congruency"))) 
+  xlab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), italic(mu)*"  Congruency"))) +
+  ylab(expression(atop(italic(eta[1])* " + " *italic(u[2][i]), "log"*(sigma)* "  Congruency"))) 
 
 
-
+plot_42
 
 left_cors_stroop <- plot_grid(plot_31, plot_41, ncol = 1)
 right_cors_stroop <- plot_grid(plot_32, plot_42, ncol = 1)
