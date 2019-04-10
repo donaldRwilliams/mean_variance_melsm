@@ -6,6 +6,7 @@ library(brms)
 library(dplyr)
 library(ggplot2)
 library(cowplot)
+library(reshape)
 # read the data
 
 
@@ -498,6 +499,48 @@ lkj_dat %>%
   scale_linetype_manual(name = expression("  "~italic(nu)), 
                         values = c("solid", "longdash", "dotted", "dotdash"))
   
+
+
+##########################
+##### full models ########
+##########################
+
+# stroop
+form_stroop <- brmsformula(rt ~ congruency + (congruency |c| ID), 
+                           sigma  ~ congruency + (congruency |c| ID))
+
+
+
+fit_stroop <- brm(form_stroop, data = stroop, 
+                  inits = 0, cores = 2, 
+                  chains = 2, iter = 2000, 
+                  warmup = 1000)
+
+# random effects mean
+re_mean_stroop <- fit_stroop  %>% 
+  data.frame() %>%
+  select( contains("r")) %>%
+  select(- contains("sigma")) %>%
+  select(-contains("Intercept")) %>%
+  select(-contains("b_")) %>%
+  select(-contains("sd_"))
+
+# fixed effect mean
+fe_mean_stroop <- fit_stroop  %>% 
+  data.frame() %>% 
+  select(contains("b_congruencyincongruent"))
+
+re_mean_stroop <- (re_mean_stroop + fe_mean_stroop[,1])
+colnames(re_mean_stroop) <- 1:121
+re_mean_stroop %>% 
+   melt() %>% 
+  group_by(variable) %>% 
+  summarise(mu = mean(value),
+            low = quantile(value, probs = 0.05),
+             up = quantile(value, probs = 0.95)) %>%
+  mutate(sig = ifelse(low < 0  & up > 0, 0, 1)) %>%
+  arrange(mu) %>%
+  mutate(index = as.factor(1:121))
 
 
 
