@@ -643,22 +643,146 @@ plot_2a <- re_sigma_stroop %>%
 plot_2a
 
 
-cowplot::plot_grid(plot_1a, plot_2a, ncol = 1)
-
-# +
-  # scale_y_continuous(breaks = c(0, 0.05, 0.07, 0.10, 0.15)) +
-  # scale_color_manual(values = c("#009E73", "#CC79A7"))
+plot_1 <- plot_grid(plot_1a, plot_2a, ncol = 2)
 
 
+####################################
+####### correlation plots ##########
+####################################
+
+mu_con_stroop <- fit_stroop %>% 
+  coef() %>% 
+  .$ID %>% 
+  .[,,"Intercept"] %>% 
+  data.frame() %>% 
+  select(Estimate)
+
+sigma_con_stroop <- fit_stroop %>% 
+  coef() %>% 
+  .$ID %>% 
+  .[,,"sigma_Intercept"] %>% 
+  data.frame() %>% 
+  select(Estimate)
+
+
+dat_31 <- data.frame(mu_con_stroop = mu_con_stroop[,1], 
+                     sigma_con_stroop = sigma_con_stroop[,1])
+
+plot_31 <- dat_31 %>% 
+  ggplot(aes(x = sigma_con_stroop, y = mu_con_stroop)) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, alpha = .75, show.legend = F) +
+  scale_fill_distiller(palette= "Spectral", direction=1) +
+  geom_smooth(method = "lm", color = "white", se = FALSE) +
+  geom_point(aes(x = sigma_con_stroop, 
+                 y = mu_con_stroop), size = 2, color = "black", alpha = 0.5) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]), italic(mu)*"  Intercept"))) +
+  xlab(expression(atop(italic(eta[0])* " + " *italic(u[2][i]), "log"*(sigma)* "  Intercept"))) 
+ 
 
 
 
 
+sigma_effect_stroop <- fit_stroop %>% 
+  coef() %>% 
+  .$ID %>% 
+  .[,,"sigma_congruencyincongruent"] %>% 
+  data.frame() %>% 
+  select(Estimate)
+
+
+dat_41 <- data.frame(mu_con_stroop = mu_con_stroop[,1], 
+                     sigma_effect_stroop = sigma_effect_stroop[,1])
+
+plot_41 <- 
+  dat_41 %>% 
+  ggplot(aes(x = sigma_effect_stroop, y = mu_con_stroop)) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, alpha = .75, show.legend = F) +
+  scale_fill_distiller(palette= "Spectral", direction=1) +
+  geom_smooth(method = "lm", color = "white", se = FALSE) +
+  geom_point(aes(x = sigma_effect_stroop, 
+                 y = mu_con_stroop), size = 2, color = "black", alpha = 0.5) +
+ 
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]), italic(mu)*"  Intercept"))) +
+  xlab(expression(atop(italic(eta[1])* " + " *italic(u[3][i]), "log"*(sigma)* "  Congruency"))) 
+
+
+plot_41
+
+mu_effect_stroop <- fit_stroop %>% 
+  coef() %>% 
+  .$ID %>% 
+  .[,,"congruencyincongruent"] %>% 
+  data.frame() %>% 
+  select(Estimate)
+
+
+
+dat_32 <- data.frame(mu_effect_stroop = mu_effect_stroop[,1], 
+                     sigma_con_stroop = sigma_con_stroop[,1])
+
+ plot_32 <- 
+dat_32 %>% 
+  ggplot(aes(x = mu_effect_stroop, y = sigma_con_stroop)) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, alpha = .75, show.legend = F) +
+  scale_fill_distiller(palette= "Spectral", direction=1) +
+    geom_smooth(method = "lm", color = "white", se = FALSE) +
+    geom_point(aes(x = mu_effect_stroop, 
+                 y = sigma_con_stroop), size = 2, color = "black", alpha = 0.5) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  ylab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), italic(mu)*"  Congruency"))) +
+  xlab(expression(atop(italic(eta[0])* " + " *italic(u[2][i]), "log"*(sigma)* "  Intercept"))) 
+
+
+dat_42 <- data.frame(mu_effect_stroop = mu_effect_stroop[,1], 
+                     sigma_effect_stroop = sigma_effect_stroop[,1])
+                     
+
+
+plot_42 <- dat_42 %>% 
+  ggplot(aes(x = mu_effect_stroop, y =  sigma_effect_stroop )) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, alpha = .75, show.legend = F) +
+  scale_fill_distiller(palette= "Spectral", direction=1) +
+  geom_smooth(method = "lm", color = "white", se = FALSE) +
+  geom_point(aes(x = mu_effect_stroop, y =  sigma_effect_stroop ), 
+             size = 2, color = "black", alpha = 0.5) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  ylab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), italic(mu)*"  Congruency"))) +
+  xlab(expression(atop(italic(eta[1])* " + " *italic(u[2][i]), "log"*(sigma)* "  Congruency"))) 
 
 
 
 
+left_cors_stroop <- plot_grid(plot_31, plot_41, ncol = 1)
+right_cors_stroop <- plot_grid(plot_32, plot_42, ncol = 1)
+cor_plot <- plot_grid(left_cors_stroop, right_cors_stroop)
+cor_plot
+
+plot_grid(plot_1, "", cor_plot, nrow = 3, rel_heights = c(1,.25,2.5) )
 
 
-
-
+# stat_density2d( aes(fill = ..density..), 
+                 # geom = "polygon", bins = 5, alpha = 0.5) +
+  # scale_fill_gradient(low = 'purple', high = 'yellow')
+  
