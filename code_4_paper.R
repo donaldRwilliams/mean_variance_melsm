@@ -49,19 +49,6 @@ fit_4 <- brm(bf(rt ~ 1 + (1|c|ID)),
              warmup = 1000)
 
 
-
-fit_5 <- brm(bf(rt ~ 1 ), 
-             data = stroop %>% filter(congruency == "congruent"),
-             inits = 0, cores = 2, 
-             chains = 2, iter = 2000, 
-             warmup = 1000)
-
-fit_6 <- brm(bf(rt ~ 1 + (1|ID), sigma ~ 1 + (1|ID)), 
-             data = stroop %>% filter(congruency == "congruent"),
-             inits = 0, cores = 2, 
-             chains = 2, iter = 2000, 
-             warmup = 1000)
-
 ###############################
 ######## plot 1 ###############
 ###############################
@@ -359,17 +346,28 @@ plot_2b <- melt(re_mean_con) %>%
              linetype = "twodash",
              alpha = 0.50) +
   # error bars
-  geom_errorbar(aes(x = index, ymin = low, ymax = up),width = 0.05) +
+  geom_errorbar(aes(x = index, 
+                    ymin = low, 
+                    ymax = up), 
+                width = 0.05) +
+  
   # model based estimates
-  geom_point(aes(x = index, y = mu_mu), size = 2, color = "#0072B2", alpha = 0.75) +
+  geom_point(aes(x = index, 
+                 y = mu_mu), 
+             size = 2, 
+             color = "#0072B2", 
+             alpha = 0.75) +
+  
   # empirical estimates
   geom_point(aes(x = index, 
                  y = mu_emp), 
              size = 2, 
              color = "#D55E00",
              alpha = 0.75) +
+  
   # times font
   theme_bw(base_family = "Times") +
+  
   # plot options
   theme(panel.grid.major.x =   element_blank(), 
         panel.grid.minor.y = element_blank(),
@@ -387,16 +385,20 @@ plot_2b <- melt(re_mean_con) %>%
 # plot correlations
 
 dat_model_con <- data.frame(type = "Hierarchical",  
-                        mean = colMeans(re_mean_con), sd = colMeans(re_sigma_con))
+                        mean = colMeans(re_mean_con), 
+                        sd = colMeans(re_sigma_con))
 
 
 dat_data_con <- data.frame(type = "Empirical",  
-                       mean = emp_est_con$mean_emp, sd = emp_est_con$sd_emp)
+                       mean = emp_est_con$mean_emp, 
+                       sd = emp_est_con$sd_emp)
 
 
 dat_plt_con <- rbind.data.frame(dat_model_con, dat_data_con)
 
-plot_2c <- ggplot(dat_plt_con, aes(y = sd, x = mean, color = type)) +
+plot_2c <- ggplot(dat_plt_con, aes(y = sd, 
+                                   x = mean, 
+                                   color = type)) +
   # points
   geom_point(size = 2, 
              alpha = 0.75) +
@@ -456,19 +458,27 @@ post_con <- posterior_samples(fit_3, pars = "cor")[,1]
 #### lkj marginals ###########
 ##############################
 # nu 1
-nu_1 <- rethinking::rlkjcorr(1000000, K = 4, eta = 1)[,,1][,2]
+nu_1 <- rethinking::rlkjcorr(1000000, 
+                             K = 4, 
+                             eta = 1)[,,1][,2]
 hdi_1 <- HDInterval::hdi(nu_1, 0.50)
 
 # nu 2
-nu_2  <- rethinking::rlkjcorr(1000000, K = 4, eta = 2)[,,1][,2]
+nu_2  <- rethinking::rlkjcorr(1000000, 
+                              K = 4, 
+                              eta = 2)[,,1][,2]
 hdi_2 <- HDInterval::hdi(nu_2, 0.50)
 
 # nu 3
-nu_3  <- rethinking::rlkjcorr(1000000, K = 4, eta = 3)[,,1][,2]
+nu_3  <- rethinking::rlkjcorr(1000000, 
+                              K = 4, 
+                              eta = 3)[,,1][,2]
 hdi_3 <- HDInterval::hdi(nu_3, 0.50)
 
 # nu 4
-nu_4  <- rethinking::rlkjcorr(1000000, K = 4, eta = 4)[,,1][,2]
+nu_4  <- rethinking::rlkjcorr(1000000, 
+                              K = 4, 
+                              eta = 4)[,,1][,2]
 hdi_4 <- HDInterval::hdi(nu_4, 0.50)
 
 # data for plotting
@@ -508,14 +518,12 @@ lkj_dat %>%
 form_stroop <- brmsformula(rt ~ congruency + (congruency |c| ID), 
                            sigma  ~ congruency + (congruency |c| ID))
 
-
-
 fit_stroop <- brm(form_stroop, data = stroop, 
                   inits = 0, cores = 2, 
                   chains = 2, iter = 2000, 
                   warmup = 1000)
 
-save(fit_stroop, file = "fit_stroop.Rdata")
+# save(fit_stroop, file = "fit_stroop.Rdata")
 
 # random effects mean
 re_mean_stroop <- fit_stroop  %>% 
@@ -533,13 +541,15 @@ fe_mean_stroop <- fit_stroop  %>%
 
 re_mean_stroop <- (re_mean_stroop + fe_mean_stroop[,1])
 colnames(re_mean_stroop) <- 1:121
+
 plot_1a <- re_mean_stroop %>% 
    melt() %>% 
   group_by(variable) %>% 
   summarise(mu = mean(value),
             low = quantile(value, probs = 0.05),
              up = quantile(value, probs = 0.95)) %>%
-  mutate(sig = as.factor(ifelse(low < round(mean(fe_mean_stroop[,1]), 2)  & up > round(mean(fe_mean_stroop[,1]), 2), 0, 1))) %>%
+  mutate(sig = as.factor(ifelse(low < round(mean(fe_mean_stroop[,1]), 2)  & 
+                                up > round(mean(fe_mean_stroop[,1]), 2), 0, 1))) %>%
   arrange(mu) %>%
   mutate(index = as.factor(1:121)) %>%
   ggplot() +
@@ -572,8 +582,8 @@ plot_1a <- re_mean_stroop %>%
         title = element_text(size = 14)) +
   xlab("Ascending Index") +
   scale_x_discrete(expand = c(0.015, 0.015)) +
-  ylab(expression(atop(italic(beta[1])* " + " *italic(u[1][i]),  mu * "  Congruency"))) +
-  # ylab(expression(italic(beta[1]) ~ "+" ~ italic(u[1][i]))) +
+  ylab(expression(atop(italic(beta[1])* " + " *italic(u[1][i]),  
+                       mu * "  Congruency"))) +
   scale_y_continuous(breaks = c(0, 0.05, 0.07, 0.10, 0.15)) +
   scale_color_manual(values = c("#009E73", "#CC79A7"))
     
@@ -597,13 +607,16 @@ fe_sigma_stroop <- fit_stroop  %>%
 
 re_sigma_stroop <- re_sigma_stroop + fe_sigma_stroop[,1]
 colnames(re_sigma_stroop) <- 1:121
+
+
 plot_2a <- re_sigma_stroop %>% 
   melt() %>% 
   group_by(variable) %>% 
   summarise(mu = mean(value),
             low = quantile(value, probs = 0.05),
             up = quantile(value, probs = 0.95)) %>%
-  mutate(sig = as.factor(ifelse(low < round(mean((fe_sigma_stroop[,1])),2)  & up > round(mean((fe_sigma_stroop[,1])),2) , 0, 1))) %>%
+  mutate(sig = as.factor(ifelse(low < round(mean((fe_sigma_stroop[,1])),2)  & 
+                                up > round(mean((fe_sigma_stroop[,1])),2) , 0, 1))) %>%
   arrange(mu) %>%
   mutate(index = as.factor(1:121)) %>%
   ggplot() +
@@ -636,12 +649,10 @@ plot_2a <- re_sigma_stroop %>%
         title = element_text(size = 14)) +
   xlab("Ascending Index") +
   scale_x_discrete(expand = c(0.015, 0.015)) +
-  ylab(expression(atop(italic(eta[1])* " + " *italic(u[3][i]), "log"*(sigma)* "  Congruency"))) +
-  # ylab(expression(atop(italic(eta[1])~"+" ~ italic(u[3][i])), italic("d"))) +
+  ylab(expression(atop(italic(eta[1])* " + " *italic(u[3][i]), 
+                       "log"*(sigma)* "  Congruency"))) +
   scale_y_continuous(breaks = c(-0.5, 0, 0.5, 0.16, 0.5, 1)) +
   scale_color_manual(values = c("#009E73", "#CC79A7"))
-plot_2a
-
 
 plot_1 <- plot_grid(plot_1a, plot_2a, ncol = 2)
 
@@ -669,20 +680,33 @@ dat_31 <- data.frame(mu_con_stroop = mu_con_stroop[,1],
                      sigma_con_stroop = sigma_con_stroop[,1])
 
 plot_31 <- dat_31 %>% 
-  ggplot(aes(x = sigma_con_stroop, y = mu_con_stroop)) +
+  ggplot(aes(x = sigma_con_stroop, 
+             y = mu_con_stroop)) +
   theme_bw(base_family = "Times") +
   theme(panel.grid = element_blank(),
         axis.title = element_text(size = 14),
         title = element_text(size = 14)) +
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, alpha = .75, show.legend = F) +
-  scale_fill_distiller(palette= "Spectral", direction=1) +
-  geom_smooth(method = "lm", color = "white", se = FALSE) +
+  stat_density_2d(aes(fill = ..density..), 
+                  geom = "raster", 
+                  contour = FALSE, 
+                  alpha = .75, 
+                  show.legend = F) +
+  scale_fill_distiller(palette= "Spectral", 
+                       direction=1) +
+  geom_smooth(method = "lm", 
+              color = "white", 
+              se = FALSE) +
   geom_point(aes(x = sigma_con_stroop, 
-                 y = mu_con_stroop), size = 2, color = "black", alpha = 0.5) +
+                 y = mu_con_stroop), 
+             size = 2, 
+             color = "black", 
+             alpha = 0.5) +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0,0)) +
-  ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]), italic(mu)*"  Intercept"))) +
-  xlab(expression(atop(italic(eta[0])* " + " *italic(u[2][i]), "log"*(sigma)* "  Intercept"))) 
+  ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]), 
+                       italic(mu)*"  Intercept"))) +
+  xlab(expression(atop(italic(eta[0])* " + " *italic(u[2][i]), 
+                       "log"*(sigma)* "  Intercept"))) 
  
 
 
@@ -701,24 +725,41 @@ dat_41 <- data.frame(mu_con_stroop = mu_con_stroop[,1],
 
 plot_41 <- 
   dat_41 %>% 
-  ggplot(aes(x = sigma_effect_stroop, y = mu_con_stroop)) +
+  ggplot(aes(x = sigma_effect_stroop, 
+             y = mu_con_stroop)) +
   theme_bw(base_family = "Times") +
   theme(panel.grid = element_blank(),
         axis.title = element_text(size = 14),
         title = element_text(size = 14)) +
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, alpha = .75, show.legend = F) +
-  scale_fill_distiller(palette= "Spectral", direction=1) +
-  geom_smooth(method = "lm", color = "white", se = FALSE) +
+  stat_density_2d(aes(fill = ..density..), 
+                  geom = "raster", 
+                  contour = FALSE, 
+                  alpha = .75, 
+                  show.legend = F) +
+  # spectral gradient
+  scale_fill_distiller(palette = "Spectral", 
+                       direction = 1) +
+  # fitted line
+  geom_smooth(method = "lm", 
+              color = "white", 
+              # no standard error
+              se = FALSE) +
+  # add points
   geom_point(aes(x = sigma_effect_stroop, 
-                 y = mu_con_stroop), size = 2, color = "black", alpha = 0.5) +
- 
+                 y = mu_con_stroop), 
+             size = 2, 
+             color = "black", 
+             alpha = 0.5) +
+  # more all space in plot
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0,0)) +
-  ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]), italic(mu)*"  Intercept"))) +
-  xlab(expression(atop(italic(eta[1])* " + " *italic(u[3][i]), "log"*(sigma)* "  Congruency"))) 
+  # y label
+  ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]), 
+                       italic(mu)*"  Intercept"))) +
+  # x label
+  xlab(expression(atop(italic(eta[1])* " + " *italic(u[3][i]), 
+                       "log"*(sigma)* "  Congruency"))) 
 
-
-plot_41
 
 mu_effect_stroop <- fit_stroop %>% 
   coef() %>% 
@@ -728,61 +769,78 @@ mu_effect_stroop <- fit_stroop %>%
   select(Estimate)
 
 
-
 dat_32 <- data.frame(mu_effect_stroop = mu_effect_stroop[,1], 
                      sigma_con_stroop = sigma_con_stroop[,1])
 
- plot_32 <- 
-dat_32 %>% 
-  ggplot(aes(x = mu_effect_stroop, y = sigma_con_stroop)) +
+plot_32 <- dat_32 %>% 
+  ggplot(aes(x = mu_effect_stroop, 
+             y = sigma_con_stroop)) +
   theme_bw(base_family = "Times") +
   theme(panel.grid = element_blank(),
         axis.title = element_text(size = 14),
         title = element_text(size = 14)) +
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, alpha = .75, show.legend = F) +
-  scale_fill_distiller(palette= "Spectral", direction=1) +
-    geom_smooth(method = "lm", color = "white", se = FALSE) +
+  stat_density_2d(aes(fill = ..density..), 
+                  geom = "raster", 
+                  contour = FALSE, 
+                  alpha = .75, 
+                  show.legend = F) +
+  scale_fill_distiller(palette= "Spectral", 
+                       direction=1) +
+    geom_smooth(method = "lm", 
+                color = "white", 
+                se = FALSE) +
     geom_point(aes(x = mu_effect_stroop, 
-                 y = sigma_con_stroop), size = 2, color = "black", alpha = 0.5) +
+                 y = sigma_con_stroop), 
+               size = 2, 
+               color = "black", 
+               alpha = 0.5) +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0,0)) +
-  ylab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), italic(mu)*"  Congruency"))) +
-  xlab(expression(atop(italic(eta[0])* " + " *italic(u[2][i]), "log"*(sigma)* "  Intercept"))) 
+  ylab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), 
+                       italic(mu)*"  Congruency"))) +
+  xlab(expression(atop(italic(eta[0])* " + " *italic(u[2][i]), 
+                       "log"*(sigma)* "  Intercept"))) 
 
 
 dat_42 <- data.frame(mu_effect_stroop = mu_effect_stroop[,1], 
                      sigma_effect_stroop = sigma_effect_stroop[,1])
                      
 
-
 plot_42 <- dat_42 %>% 
-  ggplot(aes(x = mu_effect_stroop, y =  sigma_effect_stroop )) +
+  ggplot(aes(x = mu_effect_stroop, 
+             y =  sigma_effect_stroop )) +
   theme_bw(base_family = "Times") +
   theme(panel.grid = element_blank(),
         axis.title = element_text(size = 14),
         title = element_text(size = 14)) +
-  stat_density_2d(aes(fill = ..density..), geom = "raster", contour = FALSE, alpha = .75, show.legend = F) +
-  scale_fill_distiller(palette= "Spectral", direction=1) +
-  geom_smooth(method = "lm", color = "white", se = FALSE) +
-  geom_point(aes(x = mu_effect_stroop, y =  sigma_effect_stroop ), 
-             size = 2, color = "black", alpha = 0.5) +
+  stat_density_2d(aes(fill = ..density..), 
+                  geom = "raster", 
+                  contour = FALSE, 
+                  alpha = .75, 
+                  show.legend = F) +
+  scale_fill_distiller(palette= "Spectral", 
+                       direction=1) +
+  geom_smooth(method = "lm", 
+              color = "white", 
+              se = FALSE) +
+  geom_point(aes(x = mu_effect_stroop, 
+                 y = sigma_effect_stroop), 
+             size = 2, 
+             color = "black", 
+             alpha = 0.5) +
   scale_x_continuous(expand = c(0, 0)) +
   scale_y_continuous(expand = c(0,0)) +
-  xlab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), italic(mu)*"  Congruency"))) +
-  ylab(expression(atop(italic(eta[1])* " + " *italic(u[2][i]), "log"*(sigma)* "  Congruency"))) 
+  xlab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), 
+                       italic(mu)*"  Congruency"))) +
+  ylab(expression(atop(italic(eta[1])* " + " *italic(u[2][i]), 
+                       "log"*(sigma)* "  Congruency"))) 
 
-
-plot_42
 
 left_cors_stroop <- plot_grid(plot_31, plot_41, ncol = 1)
 right_cors_stroop <- plot_grid(plot_32, plot_42, ncol = 1)
 cor_plot <- plot_grid(left_cors_stroop, right_cors_stroop)
-cor_plot
 
 plot_grid(plot_1, "", cor_plot, nrow = 3, rel_heights = c(1,.25,2.5) )
 
 
-# stat_density2d( aes(fill = ..density..), 
-                 # geom = "polygon", bins = 5, alpha = 0.5) +
-  # scale_fill_gradient(low = 'purple', high = 'yellow')
   
