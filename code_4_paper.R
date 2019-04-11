@@ -199,17 +199,15 @@ plot_1b <- melt(re_mean_in) %>%
   scale_y_continuous(breaks = c(0.6, 0.7, 0.77, 0.9, 1))
 
 
-
 # plot correlations
-
 dat_model_in <- data.frame(type = "Hierarchical",  
-                        mean = colMeans(re_mean_in), 
-                        sd = colMeans(re_sigma_in))
+                           mean = colMeans(re_mean_in), 
+                           sd = colMeans(re_sigma_in))
                         
 
 dat_data_in <- data.frame(type = "Empirical",  
-                    mean = emp_est_in$mean_emp, 
-                    sd = emp_est_in$sd_emp)
+                          mean = emp_est_in$mean_emp, 
+                          sd = emp_est_in$sd_emp)
 
 
 dat_plt_in <- rbind.data.frame(dat_model_in, dat_data_in)
