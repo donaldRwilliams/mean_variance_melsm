@@ -611,7 +611,7 @@ fit_stroop_me <- brm(form_stroop_me, data = stroop,
                   warmup = 1000, prior = prior_stroop_me)
 
 #save(fit_stroop_me, file = "fit_stroop_me.Rdata")
-#WAIC(fit_stroop, fit_stroop_me)
+WAIC(fit_stroop, fit_stroop_me)
 
 ###############################
 ## mixed effects model plots ##
@@ -721,9 +721,6 @@ melsm_scale_int <- round(posterior_summary(fit_stroop, pars = "b_")[2,1], 3)
 melsm_scale_stroop <- round(posterior_summary(fit_stroop, pars = "b_")[4,1], 3)
 
 
-
-
-
 melsm_int_plot <- coef(fit_stroop, probs = c(0.05, 0.95))$ID[,,1] %>% 
   data.frame() %>%
   arrange(Estimate) %>%
@@ -801,9 +798,6 @@ melsm_stroop_plot <- coef(fit_stroop, probs = c(0.05, 0.95))$ID[,,2] %>%
                      labels = seq(0, .15, .05), 
                      limits = c(-0.02, 0.16)) +
   scale_x_discrete(expand = c(0.015, 0.015)) 
-
-
-
 
 
 
@@ -908,338 +902,353 @@ plot_grid(mu_int_plot,
 
 
 
-mean(coef(fit_stroop, probs = c(0.05, 0.95))$ID[,,4][,1] > 0)
 
-# +
-  # scale_y_continuous(breaks = seq(0.6, 1, .1)) +
-  # scale_x_discrete(expand = c(0.015, 0.015)) 
+##########################################
+######### hypothesis test ###############
+##########################################
+# stroop
+
+brms_cortest <- function(fit, dimension, eta){
+  
+ post_samps <- fit_stroop %>% 
+               posterior_samples(pars = "cor") 
+  
+
+ prior_samps <- rlkjcorr(n = 10000, K = dimension, eta = eta)[,,1][,2]
+  post <- apply(post_samps, 2, atanh) 
+  prior <- atanh(prior_samps)
+  col_names <- substring(colnames(post), 9)
+  post_dense_0  <- unlist( lapply(1:ncol(post), function(x) dnorm(0, mean(post[, x]), sd(post[,x]))) )
+  dense_greater  <- unlist( lapply(1:ncol(post), function(x) (1 - pnorm(0, mean(post[,x]), sd(post[,x]))) * 2))
+  dense_lesser  <- unlist( lapply(1:ncol(post), function(x) (pnorm(0, mean(post[,x]), sd(post[,x]))) * 2))
+  
+  prior_dense_0 <-  dnorm(0, mean(prior), sd(prior))
+  BF_01 <- post_dense_0 / prior_dense_0
+  BF_1u <- dense_greater * (1/ BF_01)
+  BF_2u <- dense_lesser * (1/ BF_01)
+  
+  BF_helper <- function (BF_null, BF_positive, BF_negative) {
+    c(BF_null, BF_positive, BF_negative)/sum(BF_null, BF_positive, 
+                                             BF_negative)
+  }
+  
+  
+  
+  post_prob <- data.frame(round(t(mapply(BF_helper, BF_01, BF_1u, BF_2u)), 3))
+  colnames(post_prob) <-c("null_prob", "pos_prob", "neg_prob")
+  dat <- cbind(data.frame(parameter = col_names, 
+                    post_mean = as.numeric(colMeans(post_samps)),  
+                    post_sd = as.numeric(apply(post_samps, 2, sd)),
+                    BF_01 = log(BF_01), 
+                    BF_10 = log(1/ BF_01)),
+               post_prob)
+  dat
+  
+  }
+
+
+brms_cortest(fit_stroop, 4, 2)
+
+BF_helper <- function (BF_null, BF_positive, BF_negative) {
+  c(BF_null, BF_positive, BF_negative)/sum(BF_null, BF_positive, 
+                                           BF_negative)
+}
 
 
 
 
-
-
-# # melsm_stroop_plot
-# # melsm__plot
-# # me_stroop_plot
-# 
-# 
-# # random effects mean
-# re_mean_stroop <- fit_stroop  %>% 
-#   data.frame() %>%
-#   select( contains("r")) %>%
-#   select(- contains("sigma")) %>%
-#   select(-contains("Intercept")) %>%
-#   select(-contains("b_")) %>%
-#   select(-contains("sd_"))
-# 
-# # fixed effect mean
-# fe_mean_stroop <- fit_stroop  %>% 
-#   data.frame() %>% 
-#   select(contains("b_congruencyincongruent"))
-# 
-# re_mean_stroop <- (re_mean_stroop + fe_mean_stroop[,1])
-# colnames(re_mean_stroop) <- 1:121
-# 
-# plot_1a <- re_mean_stroop %>% 
-#    melt() %>% 
-#   group_by(variable) %>% 
-#   summarise(mu = mean(value),
-#             low = quantile(value, probs = 0.05),
-#              up = quantile(value, probs = 0.95)) %>%
-#   mutate(sig = as.factor(ifelse(low < round(mean(fe_mean_stroop[,1]), 2)  & 
-#                                 up > round(mean(fe_mean_stroop[,1]), 2), 0, 1))) %>%
-#   arrange(mu) %>%
-#   mutate(index = as.factor(1:121)) %>%
-#   ggplot() +
-#   # line at average
-#   geom_hline(yintercept = round(mean(fe_mean_stroop[,1]), 2),
-#              alpha = 0.50,
-#              linetype = "twodash") +
-#   # line at 0
-#   geom_hline(yintercept = 0,
-#              alpha = 0.50) +
-#   # 90 credible intervals
-#   geom_errorbar(aes(x = index, 
-#                     ymin = low, 
-#                     ymax = up, 
-#                     color = sig), 
-#                 show.legend = F,
-#                 width = 0) +
-#   # points
-#   geom_point(aes(x = index, 
-#                  y = mu,
-#                  group = sig), 
-#              size = 2, 
-#              alpha = 0.75) +
-#   theme_bw(base_family = "Times") +
-#   # plot options
-#   theme(panel.grid.major.x =   element_blank(), 
-#         panel.grid.minor.y = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.title = element_text(size = 14),
-#         title = element_text(size = 14)) +
-#   xlab("Ascending Index") +
-#   scale_x_discrete(expand = c(0.015, 0.015)) +
-#   ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]),  
-#                        mu * "  Congruency"))) +
-#   scale_y_continuous(breaks = c(0, 0.05, 0.07, 0.10, 0.15)) +
-#   scale_color_manual(values = c("#009E73", "#CC79A7"))
-#     
-# 
-# 
-# 
-# # random effects scale
-# re_sigma_stroop <- fit_stroop  %>% 
-#   data.frame() %>%
-#   select( contains("r")) %>%
-#   select(contains("sigma")) %>%
-#   select(-contains("Intercept")) %>%
-#   select(-contains("b_")) %>%
-#   select(-contains("sd_")) %>%
-#   select(-contains("cor"))
-# 
-# # fixed effect mean
-# fe_sigma_stroop <- fit_stroop  %>% 
-#   data.frame() %>% 
-#   select(contains("b_sigma_congruencyincongruent"))
-# 
-# re_sigma_stroop <- re_sigma_stroop + fe_sigma_stroop[,1]
-# colnames(re_sigma_stroop) <- 1:121
-# 
-# 
-# plot_2a <- re_sigma_stroop %>% 
-#   melt() %>% 
-#   group_by(variable) %>% 
-#   summarise(mu = mean(value),
-#             low = quantile(value, probs = 0.05),
-#             up = quantile(value, probs = 0.95)) %>%
-#   mutate(sig = as.factor(ifelse(low < round(mean((fe_sigma_stroop[,1])),2)  & 
-#                                 up > round(mean((fe_sigma_stroop[,1])),2) , 0, 1))) %>%
-#   arrange(mu) %>%
-#   mutate(index = as.factor(1:121)) %>%
-#   ggplot() +
-#   # line at average
-#   geom_hline(yintercept = round(mean((fe_sigma_stroop[,1])),2),
-#              alpha = 0.50,
-#              linetype = "twodash") +
-#   # line at 0
-#   geom_hline(yintercept = 0,
-#   alpha = 0.50) +
-#   # 90 credible intervals
-#   geom_errorbar(aes(x = index, 
-#                     ymin = low, 
-#                     ymax = up, 
-#                     color = sig), 
-#                 show.legend = F,
-#                 width = 0) +
-#   # points
-#   geom_point(aes(x = index, 
-#                  y = mu,
-#                  group = sig), 
-#              size = 2, 
-#              alpha = 0.75) +
-#   theme_bw(base_family = "Times") +
-#   # plot options
-#   theme(panel.grid.major.x =   element_blank(), 
-#         panel.grid.minor.y = element_blank(),
-#         axis.text.x = element_blank(),
-#         axis.title = element_text(size = 14),
-#         title = element_text(size = 14)) +
-# 
-#   scale_x_discrete(expand = c(0.015, 0.015)) +
-#   ylab(expression(atop(italic(eta[1])* " + " *italic(u[3][i]), 
-#                        "log"*(sigma)* "  Congruency"))) +
-#   scale_y_continuous(breaks = c(-0.5, 0, 0.5, 0.16, 0.5, 1)) +
-#   scale_color_manual(values = c("#009E73", "#CC79A7"))
-# 
-# plot_1 <- plot_grid(plot_1a, plot_2a, ncol = 2)
-# 
-# 
 # ####################################
 # ####### correlation plots ##########
 # ####################################
-# 
-# mu_con_stroop <- fit_stroop %>% 
-#   coef() %>% 
-#   .$ID %>% 
-#   .[,,"Intercept"] %>% 
-#   data.frame() %>% 
-#   select(Estimate)
-# 
-# sigma_con_stroop <- fit_stroop %>% 
-#   coef() %>% 
-#   .$ID %>% 
-#   .[,,"sigma_Intercept"] %>% 
-#   data.frame() %>% 
-#   select(Estimate)
-# 
-# 
-# dat_31 <- data.frame(mu_con_stroop = mu_con_stroop[,1], 
-#                      sigma_con_stroop = sigma_con_stroop[,1])
-# 
-# plot_31 <- dat_31 %>% 
-#   ggplot(aes(x = sigma_con_stroop, 
-#              y = mu_con_stroop)) +
-#   theme_bw(base_family = "Times") +
-#   theme(panel.grid = element_blank(),
-#         axis.title = element_text(size = 14),
-#         title = element_text(size = 14)) +
-#   stat_density_2d(aes(fill = ..density..), 
-#                   geom = "raster", 
-#                   contour = FALSE, 
-#                   alpha = .75, 
-#                   show.legend = F) +
-#   scale_fill_distiller(palette= "Spectral", 
-#                        direction=1) +
-#   geom_smooth(method = "lm", 
-#               color = "white", 
-#               se = FALSE) +
-#   geom_point(aes(x = sigma_con_stroop, 
-#                  y = mu_con_stroop), 
-#              size = 2, 
-#              color = "black", 
-#              alpha = 0.5) +
-#   scale_x_continuous(expand = c(0, 0)) +
-#   scale_y_continuous(expand = c(0,0)) +
-#   ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]), 
-#                        italic(mu)*"  Intercept"))) +
-#   xlab(expression(atop(italic(eta[0])* " + " *italic(u[2][i]), 
-#                        "log"*(sigma)* "  Intercept"))) 
-#  
-# 
-# 
-# 
-# 
-# sigma_effect_stroop <- fit_stroop %>% 
-#   coef() %>% 
-#   .$ID %>% 
-#   .[,,"sigma_congruencyincongruent"] %>% 
-#   data.frame() %>% 
-#   select(Estimate)
-# 
-# 
-# dat_41 <- data.frame(mu_con_stroop = mu_con_stroop[,1], 
-#                      sigma_effect_stroop = sigma_effect_stroop[,1])
-# 
-# plot_41 <- 
-#   dat_41 %>% 
-#   ggplot(aes(x = sigma_effect_stroop, 
-#              y = mu_con_stroop)) +
-#   theme_bw(base_family = "Times") +
-#   theme(panel.grid = element_blank(),
-#         axis.title = element_text(size = 14),
-#         title = element_text(size = 14)) +
-#   stat_density_2d(aes(fill = ..density..), 
-#                   geom = "raster", 
-#                   contour = FALSE, 
-#                   alpha = .75, 
-#                   show.legend = F) +
-#   # spectral gradient
-#   scale_fill_distiller(palette = "Spectral", 
-#                        direction = 1) +
-#   # fitted line
-#   geom_smooth(method = "lm", 
-#               color = "white", 
-#               # no standard error
-#               se = FALSE) +
-#   # add points
-#   geom_point(aes(x = sigma_effect_stroop, 
-#                  y = mu_con_stroop), 
-#              size = 2, 
-#              color = "black", 
-#              alpha = 0.5) +
-#   # more all space in plot
-#   scale_x_continuous(expand = c(0, 0)) +
-#   scale_y_continuous(expand = c(0,0)) +
-#   # y label
-#   ylab(expression(atop(italic(beta[0])* " + " *italic(u[0][i]), 
-#                        italic(mu)*"  Intercept"))) +
-#   # x label
-#   xlab(expression(atop(italic(eta[1])* " + " *italic(u[3][i]), 
-#                        "log"*(sigma)* "  Congruency"))) 
-# 
-# 
-# mu_effect_stroop <- fit_stroop %>% 
-#   coef() %>% 
-#   .$ID %>% 
-#   .[,,"congruencyincongruent"] %>% 
-#   data.frame() %>% 
-#   select(Estimate)
-# 
-# 
-# dat_32 <- data.frame(mu_effect_stroop = mu_effect_stroop[,1], 
-#                      sigma_con_stroop = sigma_con_stroop[,1])
-# 
-# plot_32 <- dat_32 %>% 
-#   ggplot(aes(x = mu_effect_stroop, 
-#              y = sigma_con_stroop)) +
-#   theme_bw(base_family = "Times") +
-#   theme(panel.grid = element_blank(),
-#         axis.title = element_text(size = 14),
-#         title = element_text(size = 14)) +
-#   stat_density_2d(aes(fill = ..density..), 
-#                   geom = "raster", 
-#                   contour = FALSE, 
-#                   alpha = .75, 
-#                   show.legend = F) +
-#   scale_fill_distiller(palette= "Spectral", 
-#                        direction=1) +
-#     geom_smooth(method = "lm", 
-#                 color = "white", 
-#                 se = FALSE) +
-#     geom_point(aes(x = mu_effect_stroop, 
-#                  y = sigma_con_stroop), 
-#                size = 2, 
-#                color = "black", 
-#                alpha = 0.5) +
-#   scale_x_continuous(expand = c(0, 0)) +
-#   scale_y_continuous(expand = c(0,0)) +
-#   ylab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), 
-#                        italic(mu)*"  Congruency"))) +
-#   xlab(expression(atop(italic(eta[0])* " + " *italic(u[2][i]), 
-#                        "log"*(sigma)* "  Intercept"))) 
-# 
-# 
-# dat_42 <- data.frame(mu_effect_stroop = mu_effect_stroop[,1], 
-#                      sigma_effect_stroop = sigma_effect_stroop[,1])
-#                      
-# 
-# plot_42 <- dat_42 %>% 
-#   ggplot(aes(x = mu_effect_stroop, 
-#              y =  sigma_effect_stroop )) +
-#   theme_bw(base_family = "Times") +
-#   theme(panel.grid = element_blank(),
-#         axis.title = element_text(size = 14),
-#         title = element_text(size = 14)) +
-#   stat_density_2d(aes(fill = ..density..), 
-#                   geom = "raster", 
-#                   contour = FALSE, 
-#                   alpha = .75, 
-#                   show.legend = F) +
-#   scale_fill_distiller(palette= "Spectral", 
-#                        direction=1) +
-#   geom_smooth(method = "lm", 
-#               color = "white", 
-#               se = FALSE) +
-#   geom_point(aes(x = mu_effect_stroop, 
-#                  y = sigma_effect_stroop), 
-#              size = 2, 
-#              color = "black", 
-#              alpha = 0.5) +
-#   scale_x_continuous(expand = c(0, 0)) +
-#   scale_y_continuous(expand = c(0,0)) +
-#   xlab(expression(atop(italic(beta[1])* " + " *italic(u[2][i]), 
-#                        italic(mu)*"  Congruency"))) +
-#   ylab(expression(atop(italic(eta[1])* " + " *italic(u[2][i]), 
-#                        "log"*(sigma)* "  Congruency"))) 
-# 
-# 
-# left_cors_stroop <- plot_grid(plot_31, plot_41, ncol = 1)
-# right_cors_stroop <- plot_grid(plot_32, plot_42, ncol = 1)
-# cor_plot <- plot_grid(left_cors_stroop, right_cors_stroop)
-# 
-# plot_grid(plot_1, "", cor_plot, nrow = 3, rel_heights = c(1,.25,2.5) )
-# 
-# 
-#   
+
+mu_con_stroop <- fit_stroop %>%
+  coef() %>%
+  .$ID %>%
+  .[,,"Intercept"] %>%
+  data.frame() %>%
+  select(Estimate)
+
+sigma_con_stroop <- fit_stroop %>%
+  coef() %>%
+  .$ID %>%
+  .[,,"sigma_Intercept"] %>%
+  data.frame() %>%
+  select(Estimate)
+
+
+dat_31 <- data.frame(mu_con_stroop = mu_con_stroop[,1],
+                     sigma_con_stroop = sigma_con_stroop[,1])
+
+plot_31 <- dat_31 %>%
+  ggplot(aes(x = sigma_con_stroop,
+             y = mu_con_stroop)) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  stat_density_2d(aes(fill = ..density..),
+                  geom = "raster",
+                  contour = FALSE,
+                  alpha = .75,
+                  show.legend = F) +
+  scale_fill_distiller(palette= "Spectral",
+                       direction=1) +
+  geom_smooth(method = "lm",
+              color = "white",
+              se = FALSE) +
+  geom_point(aes(x = sigma_con_stroop,
+                 y = mu_con_stroop),
+             size = 2,
+             color = "black",
+             alpha = 0.5) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  ylab(expression(italic(beta[0])* " + " *italic(u[0][i]))) +
+  xlab(expression(italic(eta[0])* " + " *italic(u[2][i]))) +
+  annotate("text", y = 0.9, x = -2.35, label = expression(italic("r")*" = 0.68"), family = "Times", size = 9)
+
+
+
+plot_31
+
+sigma_effect_stroop <- fit_stroop %>%
+  coef() %>%
+  .$ID %>%
+  .[,,"sigma_congruencyincongruent"] %>%
+  data.frame() %>%
+  select(Estimate)
+
+
+dat_41 <- data.frame(mu_con_stroop = mu_con_stroop[,1],
+                     sigma_effect_stroop = sigma_effect_stroop[,1])
+
+plot_41 <-
+  dat_41 %>%
+  ggplot(aes(x = sigma_effect_stroop,
+             y = mu_con_stroop)) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  stat_density_2d(aes(fill = ..density..),
+                  geom = "raster",
+                  contour = FALSE,
+                  alpha = .75,
+                  show.legend = F) +
+  # spectral gradient
+  scale_fill_distiller(palette = "Spectral",
+                       direction = 1) +
+  # fitted line
+  geom_smooth(method = "lm",
+              color = "white",
+              # no standard error
+              se = FALSE) +
+  # add points
+  geom_point(aes(x = sigma_effect_stroop,
+                 y = mu_con_stroop),
+             size = 2,
+             color = "black",
+             alpha = 0.5) +
+  # more all space in plot
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  # y label
+  ylab(expression(italic(beta[0])* " + " *italic(u[0][i]))) +
+  # x label
+  xlab(expression(italic(eta[1])* " + " *italic(u[3][i]))) +
+  annotate("text", y = 0.9, x = .55, label = expression(italic("r")*" = -0.40"), family = "Times", size = 9)
+
+
+
+
+
+mu_effect_stroop <- fit_stroop %>%
+  coef() %>%
+  .$ID %>%
+  .[,,"congruencyincongruent"] %>%
+  data.frame() %>%
+  select(Estimate)
+
+
+dat_32 <- data.frame(mu_effect_stroop = mu_effect_stroop[,1],
+                     sigma_con_stroop = sigma_con_stroop[,1])
+
+plot_32 <- dat_32 %>%
+  ggplot(aes(x = mu_effect_stroop,
+             y = sigma_con_stroop)) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  stat_density_2d(aes(fill = ..density..),
+                  geom = "raster",
+                  contour = FALSE,
+                  alpha = .75,
+                  show.legend = F) +
+  scale_fill_distiller(palette= "Spectral",
+                       direction=1) +
+    geom_smooth(method = "lm",
+                color = "white",
+                se = FALSE) +
+    geom_point(aes(x = mu_effect_stroop,
+                 y = sigma_con_stroop),
+               size = 2,
+               color = "black",
+               alpha = 0.5) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  ylab(expression(italic(beta[1])* " + " *italic(u[1][i]))) +
+  xlab(expression(italic(eta[0])* " + " *italic(u[2][i]))) +
+  annotate("text", y = -2.60, x = .10, label = expression(italic("r")*" = -0.19"), family = "Times", size = 9)
+
+  plot_32
+
+
+dat_42 <- data.frame(mu_effect_stroop = mu_effect_stroop[,1],
+                     sigma_effect_stroop = sigma_effect_stroop[,1])
+
+
+plot_42 <- dat_42 %>%
+  ggplot(aes(y = mu_effect_stroop,
+             x =  sigma_effect_stroop )) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14)) +
+  stat_density_2d(aes(fill = ..density..),
+                  geom = "raster",
+                  contour = FALSE,
+                  alpha = .75,
+                  show.legend = F) +
+  scale_fill_distiller(palette= "Spectral",
+                       direction=1) +
+  geom_smooth(method = "lm",
+              color = "white",
+              se = FALSE) +
+  geom_point(aes(y = mu_effect_stroop,
+                 x = sigma_effect_stroop),
+             size = 2,
+             color = "black",
+             alpha = 0.5) +
+  scale_x_continuous(expand = c(0, 0)) +
+  scale_y_continuous(expand = c(0,0)) +
+  ylab(expression(italic(beta[1])* " + " *italic(u[1][i]))) +
+  xlab(expression(italic(eta[1])* " + " *italic(u[3][i]))) +
+  annotate("text", y = .115, 
+           x = 0, 
+           label = expression(italic("r")*" = 0.80"), 
+           family = "Times", size = 9)
+# plot_42
+
+left_cors_stroop <- plot_grid(plot_31, plot_41, ncol = 1)
+right_cors_stroop <- plot_grid(plot_32, plot_42, ncol = 1)
+cor_plot <- plot_grid(left_cors_stroop, right_cors_stroop)
+
+# cor_plot
+
+plot_grid(plot_1, "", cor_plot, nrow = 3, rel_heights = c(1,.25,2.5) )
+
+
+#############################
+### sensitivity analysis ####
+#############################
+
+hist(rlkjcorr(10000, 4, 0.01)[,,1][,2])
+
+nu_values <- seq(0.1, 4, length.out = 20)
+
+
+
+
+stroop_sens <- lapply(1:length(nu_values), function(x)  cbind(brms_cortest(fit = fit_stroop, 
+                                                                     dimension = 4, 
+                                                                     eta = nu_values[x])[c(2:5),c(1,5)], 
+                                                              data.frame(nu = (nu_values[x]))))
+
+names(stroop_sens) <- nu_values
+stroop_sens
+
+
+
+
+dat_stroop_sens <- do.call(rbind.data.frame, stroop_sens)
+dat_stroop_sens$outcome <- "Interference"
+
+sens_legend <- dat_stroop_sens %>% 
+  ggplot() + 
+  facet_wrap(~ outcome) +
+  geom_hline(yintercept = log(.33), 
+             linetype = "dotted") +
+  geom_hline(yintercept = log(3), 
+             linetype = "dotted") +
+  annotate("rect", 
+           xmin=-Inf, 
+           xmax=Inf, ymin=log(3), ymax=Inf, alpha=0.30, fill="grey90") +
+  annotate("rect", 
+           xmin=-Inf, 
+           xmax=Inf, ymin=-Inf, ymax=log(.33), alpha=0.30, fill="grey90") +
+  geom_line(aes( x = nu, color = parameter, y= BF_10), size = 2) +
+  scale_color_manual(name = "Relation",
+                     breaks = c("Intercept__sigma_Intercept",
+                                "Intercept__sigma_congruencyincongruent",
+                                "congruencyincongruent__sigma_Intercept",
+                               "congruencyincongruent__sigma_congruencyincongruent"),
+                     labels = c(expression(italic("cor")*"("*italic( u[0][i]* ","*u[2][i])*")"),
+                                expression(italic("cor")*"("*italic( u[0][i]* ","*u[3][i])*")"),
+                                expression(italic("cor")*"("*italic( u[1][i]* ","*u[2][i])*")"),
+                                expression(italic("cor")*"("*italic( u[1][i]* ","*u[3][i])*")")
+                                ),
+                     
+                     values = c("#999999", "#E69F00", "#56B4E9", "#009E73")) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid.minor.x  = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14),
+        legend.text = element_text(size = 14),
+        legend.position = "top",
+        strip.background = element_rect(fill = "grey94"),
+        strip.text = element_text(size= 14)) +
+  xlab(expression("LKJ  " * italic(nu))) +
+  ylab(expression("log("*italic(BF[10])*")"))
+
+sens_legend <- get_legend(sens_legend) 
+
+
+sens_stroop <- dat_stroop_sens %>% 
+  ggplot() + 
+  facet_wrap(~ outcome) +
+  geom_hline(yintercept = log(.33), 
+             linetype = "dotted") +
+  geom_hline(yintercept = log(3), 
+             linetype = "dotted") +
+  annotate("rect", 
+           xmin=-Inf, 
+           xmax=Inf, ymin=log(3), ymax=Inf, alpha=0.30, fill="grey90") +
+  annotate("rect", 
+           xmin=-Inf, 
+           xmax=Inf, ymin=-Inf, ymax=log(.33), alpha=0.30, fill="grey90") +
+  geom_line(aes( x = nu, color = parameter, y= BF_10), size = 2) +
+  scale_color_manual(name = "Relation",
+                     breaks = c("Intercept__sigma_Intercept",
+                                "Intercept__sigma_congruencyincongruent",
+                                "congruencyincongruent__sigma_Intercept",
+                                "congruencyincongruent__sigma_congruencyincongruent"),
+                     labels = c(expression(italic("cor")*"("*italic( u[0][i]* ","*u[2][i])*")"),
+                                expression(italic("cor")*"("*italic( u[0][i]* ","*u[3][i])*")"),
+                                expression(italic("cor")*"("*italic( u[1][i]* ","*u[2][i])*")"),
+                                expression(italic("cor")*"("*italic( u[1][i]* ","*u[3][i])*")")),
+                     values = c("#999999", "#E69F00", "#56B4E9", "#009E73")) +
+  theme_bw(base_family = "Times") +
+  theme(panel.grid.minor.x  = element_blank(),
+        axis.title = element_text(size = 14),
+        title = element_text(size = 14),
+        legend.text = element_text(size = 14),
+        legend.position = "none",
+        strip.background = element_rect(fill = "grey94"),
+        strip.text = element_text(size= 14)) +
+  xlab(expression("LKJ  " * italic(nu))) +
+  ylab(expression("log("*italic(BF[10])*")"))
+
+
+
+
